@@ -45,7 +45,10 @@
       var source = new ol.source.VectorTile({
         attributions: '© Lantmäteriet',
         format: new ol.format.MVT(),
-        tileGrid: new ol.tilegrid.TileGrid({origin, resolutions}),
+        tileGrid: new ol.tilegrid.TileGrid({
+          origin: origin,
+          resolutions: resolutions
+        }),
         tilePixelRatio: 2,
         tileUrlFunction: tileUrlFunction
       })
