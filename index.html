@@ -5,10 +5,12 @@
     <meta charset="UTF-8">
     <meta name=viewport content="width=device-width, maximum-scale=1, user-scalable=no, initial-scale=1">
     <link rel="stylesheet" href="ol.css" type="text/css">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700,300' rel='stylesheet' type='text/css'>
     <script src="ol.js"></script>
     <style>
       html, body, .map {
         position: absolute;
+        font: 11px Open Sans, Arial, Helvetica, sans serif;
         padding: 0;
         margin: 0;
         top: 0;
@@ -16,10 +18,22 @@
         left: 0;
         right: 0;
       }
+      input[type=checkbox] {
+        vertical-align: middle;
+        position: relative;
+        bottom: 1px;
+      }
+      label {
+        position: relative;
+        top: 6px;
+        left: 30px;
+      }
     </style>
   </head>
   <body>
     <div id="map" class="map"></div>
+    <label><input type="checkbox" id="labels" checked />Texter</label>
+    <label><input type="checkbox" id="oh" checked />Höjdkurvor</label>
     <script>
       var origin = [218128, 6126002]
       var resolutions = [4096, 2048, 1024, 512, 256, 128, 64, 32, 16] // , 8, 4, 2, 1, 0.5]
@@ -37,6 +51,46 @@
       })
 
       var styleFunctions = {
+        by_riks: function(f, res) {
+          return [
+            new ol.style.Style({
+              fill: new ol.style.Fill({
+                color: '#000000'
+              })
+            })
+          ]
+        },
+        tx_riks: function(f, res) {
+          if (!document.getElementById('labels').checked) return []
+          var kkod = f.get('kkod')
+          // if (res > 32) return []
+          if (kkod < 2 || kkod > 9) return []
+          if (res > 16 && kkod < 8 || kkod > 9) return []
+          var weight = kkod <= 8 ? 'normal' : 'bold'
+          return [
+            new ol.style.Style({
+              text: new ol.style.Text({
+                font: weight + ' 10px Open Sans, Arial, Helvetica, sans serif',
+                text: f.get('text'),
+                stroke: new ol.style.Stroke({
+                  color: '#ffffff',
+                  width: 3
+                })
+              }),
+              zIndex: 1000
+            })
+          ]
+        },
+        oh_riks: function(f, res) {
+          if (!document.getElementById('oh').checked) return []
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#ff8800'
+              })
+            })
+          ]
+        },
         al_riks: function(f, res) {
           var kkod = f.get('kkod')
           if (kkod == 24 && res > 256) return []
@@ -75,9 +129,6 @@
             1: 2,
             2: 1
           }
-          
-          if (kkod >= 5044 && kkod <= 5091 && res > 16) return []
-          
           return [
             new ol.style.Style({
               stroke: new ol.style.Stroke({
@@ -126,7 +177,7 @@
       }
             
       var layer = new ol.layer.VectorTile({
-        renderBuffer: 8,
+        // renderBuffer: 32,
         source: source,
         style: style
       })
@@ -135,13 +186,19 @@
         layers: [ layer ],
         target: 'map',
         view: new ol.View({
-          center: [500000, 6700000],
+          center: [568914, 6495224],
           resolutions,
-          zoom: 6
+          zoom: 8
         })
       })
       
-      map.addInteraction(new ol.interaction.Select())
+      function onClick() {
+        source.refresh()
+      }
+    
+      document.getElementById('labels').addEventListener('click', onClick)
+      document.getElementById('oh').addEventListener('click', onClick)
+    
     </script>
   </body>
 </html>
