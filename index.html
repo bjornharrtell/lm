@@ -75,6 +75,9 @@
             1: 2,
             2: 1
           }
+          
+          if (kkod >= 5044 && kkod <= 5091 && res > 16) return []
+          
           return [
             new ol.style.Style({
               stroke: new ol.style.Stroke({
@@ -85,6 +88,7 @@
           ]
         },
         my_riks: function(f, res) {
+          if (res > 16) return []
           var kkod = f.get('kkod')
           var colorMap = {
             1: '#cce4fc',
@@ -133,9 +137,11 @@
         view: new ol.View({
           center: [500000, 6700000],
           resolutions,
-          zoom: 1
+          zoom: 6
         })
       })
+      
+      map.addInteraction(new ol.interaction.Select())
     </script>
   </body>
 </html>
