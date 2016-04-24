@@ -3,57 +3,129 @@
   <head>
     <title>Mapbox Vector Tiles</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="http://openlayers.org/en/v3.15.1/css/ol.css" type="text/css">
-    <script src="http://openlayers.org/en/v3.15.1/build/ol.js"></script>
+    <link rel="stylesheet" href="ol.css" type="text/css">
+    <script src="ol.js"></script>
     <style>
-      .map {
-        background: #f8f4f0;
+      html, body, .map {
+        position: absolute;
+        padding: 0;
+        margin: 0;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
       }
     </style>
   </head>
   <body>
     <div id="map" class="map"></div>
     <script>
-      const origin = [218128, 6126002]
-      const resolutions = [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5]
-      const source = new ol.source.VectorTile({
+      var origin = [218128, 6126002]
+      var resolutions = [4096, 2048, 1024, 512, 256, 128, 64, 32, 16] // , 8, 4, 2, 1, 0.5]
+
+      function tileUrlFunction(c) {
+        return 'terrang/'+c[0]+'/'+c[1]+'/'+c[2]+'.pbf'
+      }
+
+      var source = new ol.source.VectorTile({
         attributions: '© Lantmäteriet',
         format: new ol.format.MVT(),
         tileGrid: new ol.tilegrid.TileGrid({origin, resolutions}),
-        tilePixelRatio: 16,
-        tileUrlFunction: c => `terrang/${c[0]}/${c[1]}/${c[2]}.pbf`
+        tilePixelRatio: 2,
+        tileUrlFunction: tileUrlFunction
       })
-      const style = function(f, res) {
-        const kkod = f.get('kkod')
-        
-        if (kkod == 24 && res > 256) return []
-        
-        const widthMap = {
-          21: 2,
-          23: 1.5,
-          24: 1
-        }
-        const dashMap = {
-          21: [5, 5],
-          23: [5, 5],
-          24: [5, 5]
-        }
-        const colorMap = {
-          21: '#000000',
-          23: '#000000',
-          24: '#888888'
-        }
-        return [
-          new ol.style.Style({
-            stroke: new ol.style.Stroke({
-              color: colorMap[kkod],
-              width: widthMap[kkod],
-              lineDash: dashMap[kkod]
+
+      var styleFunctions = {
+        al_riks: function(f, res) {
+          var kkod = f.get('kkod')
+          if (kkod == 24 && res > 256) return []
+          var widthMap = {
+            21: 2,
+            23: 1.5,
+            24: 1
+          }
+          var dashMap = {
+            21: [5, 5],
+            23: [5, 5],
+            24: [5, 5]
+          }
+          var colorMap = {
+            21: '#000000',
+            23: '#000000',
+            24: '#888888'
+          }
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: colorMap[kkod],
+                width: widthMap[kkod],
+                lineDash: dashMap[kkod]
+              })
             })
-          })
-        ]
+          ]
+        },
+        vl_riks: function(f, res) {
+          var kkod = f.get('kkod')
+          var kat = 0
+          if ((kkod >= 5011 && kkod <= 5044) || kkod === 5811) kkod = 1
+          if (kkod > 5811) kkod = 2       
+          var widthMap = {
+            0: 0.5,
+            1: 2,
+            2: 1
+          }
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#000000',
+                width: widthMap[kkod]
+              })
+            })
+          ]
+        },
+        my_riks: function(f, res) {
+          var kkod = f.get('kkod')
+          var colorMap = {
+            1: '#cce4fc',
+            2: '#daebc5',
+            4: '#fff1ba',
+            5: '#ffffff',
+            7: '#a1d054',
+            9: '#cf26e1',
+            10: '#4860eb',
+            12: '#b30075',
+            13: '#d67eac',
+            14: '#eebed8',
+            15: '#e2e3e4',
+            16: '#ec7175',
+            17: '#37e3be',
+            18: '#e688ac',
+            19: '#9cec7f',
+            20: '#1b82e9'
+          }
+          return [
+            new ol.style.Style({
+              fill: new ol.style.Fill({
+                color: colorMap[kkod]
+              }),
+              stroke: new ol.style.Stroke({
+                color: colorMap[kkod]
+              })
+            })
+          ]
+        }
       }
-      const layer = new ol.layer.VectorTile({ source, style })
+      
+      function style(f, res) {
+        return styleFunctions[f.get('layer')](f, res)
+      }
+            
+      var layer = new ol.layer.VectorTile({
+        renderBuffer: 8,
+        source: source,
+        style: style
+      })
+
       var map = new ol.Map({
         layers: [ layer ],
         target: 'map',
