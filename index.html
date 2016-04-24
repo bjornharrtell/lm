@@ -191,7 +191,18 @@
           center: [568914, 6495224],
           resolutions: [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8],
           zoom: 8
-        })
+        }),
+        interactions = [
+          // new ol.interaction.DragRotate(),
+          new ol.interaction.DoubleClickZoom(),
+          new ol.interaction.DragPan(),
+          // new ol.interaction.PinchRotate(),
+          new ol.interaction.PinchZoom(),
+          new ol.interaction.KeyboardPan(),
+          new ol.interaction.KeyboardZoom(),
+          new ol.interaction.MouseWheelZoom(),
+          new ol.interaction.DragZoom()
+        ]
       })
       
       function onClick() {
