@@ -36,7 +36,6 @@
     <label><input type="checkbox" id="oh" checked />Höjdkurvor</label>
     <script>
       var origin = [218128, 6126002]
-      var resolutions = [4096, 2048, 1024, 512, 256, 128, 64, 32, 16] // , 8, 4, 2, 1, 0.5]
 
       function tileUrlFunction(c) {
         return 'terrang/'+c[0]+'/'+c[1]+'/'+c[2]+'.pbf'
@@ -47,7 +46,7 @@
         format: new ol.format.MVT(),
         tileGrid: new ol.tilegrid.TileGrid({
           origin: origin,
-          resolutions: resolutions
+          resolutions: [4096, 2048, 1024, 512, 256, 128, 64, 32, 16]
         }),
         tilePixelRatio: 2,
         tileUrlFunction: tileUrlFunction
@@ -190,7 +189,7 @@
         target: 'map',
         view: new ol.View({
           center: [568914, 6495224],
-          resolutions,
+          resolutions: [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8],
           zoom: 8
         })
       })
