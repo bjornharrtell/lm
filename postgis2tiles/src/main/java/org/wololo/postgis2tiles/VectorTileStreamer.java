@@ -107,8 +107,12 @@ public class VectorTileStreamer {
 	}
 
 	static void encodeRecord(String name, Envelope e, double res, VectorTileEncoder encoder, Record r) {
+		int kkod = r.getValue("kkod", int.class);
+		
+		if (name == "vl_riks" && kkod >= 5044 && kkod <= 5091 && res > 16) return;
+		
 		Geometry geom = parseWKB(r.getValue("wkb", byte[].class));
-
+		
 		if (!geom.getEnvelopeInternal().intersects(e))
 			return;
 
@@ -119,7 +123,7 @@ public class VectorTileStreamer {
 				c.y = 256 - ((c.y - e.getMinY()) / res);
 			}
 		});
-		geom = TopologyPreservingSimplifier.simplify(geom, 0.1);
+		geom = TopologyPreservingSimplifier.simplify(geom, 0.5);
 
 		Map<String, Object> attributes = r.intoMap();
 		attributes.remove("wkb");
@@ -138,9 +142,13 @@ public class VectorTileStreamer {
 
 		// logger.info("Stream tile at " + tileIndexToString(tileIndex));
 
-		String layerName = "al_riks";
-		VectorTileEncoder encoder = new VectorTileEncoder();
-		PostGIS.fetch(layerName, tileBounds).forEach(r -> encodeRecord(layerName, envelope, resolution, encoder, r));
+		VectorTileEncoder encoder = new VectorTileEncoder(512, 8, true);
+		PostGIS.fetch("al_riks", tileBounds).forEach(r -> encodeRecord("al_riks", envelope, resolution, encoder, r));
+		if (z > 5) PostGIS.fetch("vl_riks", tileBounds).forEach(r -> encodeRecord("vl_riks", envelope, resolution, encoder, r));
+		if (z > 5) PostGIS.fetch("tx_riks", tileBounds).forEach(r -> encodeRecord("tx_riks", envelope, resolution, encoder, r));
+		if (z > 6) PostGIS.fetch("by_riks", tileBounds).forEach(r -> encodeRecord("by_riks", envelope, resolution, encoder, r));
+		if (z > 7) PostGIS.fetch("my_riks", tileBounds).forEach(r -> encodeRecord("my_riks", envelope, resolution, encoder, r));
+		if (z > 7) PostGIS.fetch("oh_riks", tileBounds).forEach(r -> encodeRecord("oh_riks", envelope, resolution, encoder, r));
 		byte[] mbtile = encoder.encode();
 
 		String path = "terrang/" + tileIndexToString(tileIndex) + ".pbf";

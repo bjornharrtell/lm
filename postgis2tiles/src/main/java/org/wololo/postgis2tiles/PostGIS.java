@@ -6,6 +6,8 @@ import org.geowebcache.grid.BoundingBox;
 import org.jooq.Cursor;
 import org.jooq.DSLContext;
 import org.jooq.Field;
+import org.jooq.Record3;
+import org.jooq.Result;
 import org.jooq.SQLDialect;
 import org.jooq.Select;
 import org.jooq.impl.DSL;
@@ -31,7 +33,7 @@ public class PostGIS {
 		ds = new HikariDataSource(config);
 	}
 
-	public static Cursor<?> fetch(final String layerName, final BoundingBox bbox) {
+	public static Result<?> fetch(final String layerName, final BoundingBox bbox) {
 		final DSLContext ctx = DSL.using(ds, SQLDialect.POSTGRES_9_4);
 		ctx.settings().setExecuteLogging(false);
 		// ctx.settings().setRenderFormatted(true);
@@ -48,9 +50,10 @@ public class PostGIS {
 				DSL.val(xmax), DSL.val(ymax), DSL.val(3006));
 		final Field<Boolean> intersects = DSL.function("ST_Intersects", boolean.class, geom, makeEnvelope);
 
-		final Select<?> select = ctx.select(DSL.val(layerName), DSL.field("kkod"), wkb).from("terrang." + layerName)
-				.where(intersects);
-
-		return select.fetchLazy();
+		if (layerName == "tx_riks") {
+			return ctx.select(DSL.field("kkod"), DSL.field("text"), wkb).from("terrang." + layerName).where(intersects).fetch();
+		} else {
+			return ctx.select(DSL.field("kkod"), wkb).from("terrang." + layerName).where(intersects).fetch();
+		}
 	}
 }
