@@ -15,9 +15,14 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-slf4j-impl</artifactId>
-			<version>2.5</version>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>2.11.8</version>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.scala-logging</groupId>
+			<artifactId>scala-logging_2.11</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
@@ -30,6 +35,16 @@
 			<version>2.5</version>
 		</dependency>
 		<dependency>
+		    <groupId>org.apache.logging.log4j</groupId>
+		    <artifactId>log4j-slf4j-impl</artifactId>
+		    <version>2.5</version>
+		  </dependency>
+		<dependency>
+		    <groupId>org.scalikejdbc</groupId>
+		    <artifactId>scalikejdbc_2.11</artifactId>
+		    <version>2.3.5</version>
+		</dependency>
+		<dependency>
 			<groupId>com.zaxxer</groupId>
 			<artifactId>HikariCP</artifactId>
 			<version>2.4.5</version>
@@ -40,11 +55,6 @@
 			<version>9.4.1208</version>
 		</dependency>
 		<dependency>
-			<groupId>org.jooq</groupId>
-			<artifactId>jooq</artifactId>
-			<version>3.7.3</version>
-		</dependency>
-		<dependency>
 			<groupId>org.geowebcache</groupId>
 			<artifactId>gwc-core</artifactId>
 			<version>1.8.1</version>
@@ -52,7 +62,7 @@
 		<dependency>
 		    <groupId>no.ecc.vectortile</groupId>
 		    <artifactId>java-vector-tile</artifactId>
-		    <version>1.0.8</version>
+		    <version>1.0.9</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -88,11 +98,20 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-war-plugin</artifactId>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<version>3.2.2</version>
 				<configuration>
-					<failOnMissingWebXml>false</failOnMissingWebXml>
+					<scalaCompatVersion>2.11</scalaCompatVersion>
 				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>compile</goal>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

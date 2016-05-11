@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -19,31 +20,40 @@ import org.geowebcache.grid.GridSubsetFactory;
 import org.geowebcache.grid.SRS;
 import org.geowebcache.storage.TileRange;
 import org.geowebcache.storage.TileRangeIterator;
-import org.jooq.Record;
+// import org.jooq.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wololo.postgis2tiles.PostGIS.LMFeature;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.CoordinateFilter;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKBReader;
-import com.vividsolutions.jts.simplify.TopologyPreservingSimplifier;
+import com.vividsolutions.jts.simplify.DouglasPeuckerSimplifier;
 
 import no.ecc.vectortile.VectorTileEncoder;
 
 public class VectorTileStreamer {
-	static final Logger logger = LoggerFactory.getLogger(VectorTileStreamer.class);
+	private static final Logger logger = LoggerFactory.getLogger(VectorTileStreamer.class);
 
-	static int zoomStart = 0;
-	static int zoomEnd = 8;
+	private static final int extent = 256;
+	
+	private static final int zoomStart = 0;
+	private static final int zoomEnd = 8;
 
-	static double[] res = new double[] { 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5 };
-	public static BoundingBox sweref99tmbbox = new BoundingBox(218128, 6126002, 1083427, 7692850);
-	static GridSet gridSet = GridSetFactory.createGridSet("sweref99tm", SRS.getSRS(3006), sweref99tmbbox, false, res,
+	private static final double[] res = new double[] { 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5 };
+	private static final BoundingBox sweref99tmbbox = new BoundingBox(218128, 6126002, 1083427, 7692850);
+	private static final GridSet gridSet = GridSetFactory.createGridSet("sweref99tm", SRS.getSRS(3006), sweref99tmbbox, false, res,
 			null, null, GridSetFactory.DEFAULT_PIXEL_SIZE_METER, null, 256, 256, false);
+	
+	private static final ThreadLocal<WKBReader> reader = new ThreadLocal<WKBReader>() {
+        @Override protected WKBReader initialValue() {
+            return new WKBReader();
+        }
+    };
 
-	static public class TileIndexWrapper {
+	private static final class TileIndexWrapper {
 		public TileIndexWrapper(final long[] t) {
 			this.t = t;
 		}
@@ -56,9 +66,11 @@ public class VectorTileStreamer {
 
 		GridSubset gridSubset = GridSubsetFactory.createGridSubSet(gridSet, sweref99tmbbox, zoomStart, zoomEnd);
 
+		
 		TileRange tr = new TileRange("", "subset", zoomStart, zoomEnd, gridSubset.getCoverages(), null, null, null);
 		final TileRangeIterator it = new TileRangeIterator(tr, new int[] { 1, 1 });
 
+		/*
 		Iterator<TileIndexWrapper> it2 = new Iterator<TileIndexWrapper>() {
 			boolean hasNext = true;
 
@@ -80,14 +92,14 @@ public class VectorTileStreamer {
 		Stream<TileIndexWrapper> targetStream = StreamSupport.stream(iterable.spliterator(), false);
 
 		targetStream.parallel().forEach(t -> streamTile(gridSubset, t == null ? null : t.t));
-
+		*/
 		logger.info("Streaming ends...");
 	}
 
 	static String tileIndexToString(long[] tileIndex) {
-		long x = tileIndex[0];
-		long y = tileIndex[1];
-		long z = tileIndex[2];
+		final long x = tileIndex[0];
+		final long y = tileIndex[1];
+		final long z = tileIndex[2];
 		return z + "/" + x + "/" + y;
 	}
 
@@ -96,69 +108,65 @@ public class VectorTileStreamer {
 	}
 
 	public static Geometry parseWKB(byte[] bytes) {
-		WKBReader reader = new WKBReader();
 		Geometry geometry;
 		try {
-			geometry = reader.read(bytes);
+			geometry = reader.get().read(bytes);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		return geometry;
 	}
 
-	static void encodeRecord(String name, Envelope e, double res, VectorTileEncoder encoder, Record r) {
-		int kkod = r.getValue("kkod", int.class);
+	static void encodeRecord(String name, Envelope e, double res, VectorTileEncoder encoder, LMFeature f) {
+		if (name == "vl_riks" && f.kkod >= 5044 && f.kkod <= 5091 && res > 16) return;
 		
-		if (name == "vl_riks" && kkod >= 5044 && kkod <= 5091 && res > 16) return;
-		
-		Geometry geom = parseWKB(r.getValue("wkb", byte[].class));
-		
-		if (!geom.getEnvelopeInternal().intersects(e))
-			return;
-
-		geom.apply(new CoordinateFilter() {
+		f.geom.apply(new CoordinateFilter() {
 			@Override
 			public void filter(Coordinate c) {
 				c.x = (c.x - e.getMinX()) / res;
-				c.y = 256 - ((c.y - e.getMinY()) / res);
+				c.y = extent - ((c.y - e.getMinY()) / res) - 1;
 			}
 		});
-		geom = TopologyPreservingSimplifier.simplify(geom, 0.5);
+		final Geometry simplifiedGeom = DouglasPeuckerSimplifier.simplify(f.geom, 0.5);
 
-		Map<String, Object> attributes = r.intoMap();
-		attributes.remove("wkb");
+		final Map<String, Object> attributes = new HashMap<String, Object>();
+		attributes.put("kkod", f.kkod);
 
-		encoder.addFeature(name, attributes, geom);
+		encoder.addFeature(name, attributes, simplifiedGeom);
 	}
 
 	static void streamTile(GridSubset gridSubset, long[] tileIndex) {
 		if (tileIndex == null)
 			return;
 
-		BoundingBox tileBounds = gridSubset.boundsFromIndex(tileIndex);
-		Envelope envelope = toEnvelope(tileBounds);
-		long z = tileIndex[2];
-		double resolution = res[(int) z];
+		final BoundingBox tileBounds = gridSubset.boundsFromIndex(tileIndex);
+		final Envelope envelope = toEnvelope(tileBounds);
+		final long z = tileIndex[2];
+		final double resolution = res[(int) z];
 
 		// logger.info("Stream tile at " + tileIndexToString(tileIndex));
 
-		VectorTileEncoder encoder = new VectorTileEncoder(512, 8, true);
-		PostGIS.fetch("al_riks", tileBounds).forEach(r -> encodeRecord("al_riks", envelope, resolution, encoder, r));
-		if (z > 5) PostGIS.fetch("vl_riks", tileBounds).forEach(r -> encodeRecord("vl_riks", envelope, resolution, encoder, r));
-		if (z > 5) PostGIS.fetch("tx_riks", tileBounds).forEach(r -> encodeRecord("tx_riks", envelope, resolution, encoder, r));
-		if (z > 6) PostGIS.fetch("by_riks", tileBounds).forEach(r -> encodeRecord("by_riks", envelope, resolution, encoder, r));
-		if (z > 7) PostGIS.fetch("my_riks", tileBounds).forEach(r -> encodeRecord("my_riks", envelope, resolution, encoder, r));
-		if (z > 7) PostGIS.fetch("oh_riks", tileBounds).forEach(r -> encodeRecord("oh_riks", envelope, resolution, encoder, r));
-		byte[] mbtile = encoder.encode();
+		
+		final VectorTileEncoder encoder = new VectorTileEncoder(512, 8, true);
+		
+		/*
+		PostGIS.fetch2("al_riks", tileBounds).forEach(f -> encodeRecord("al_riks", envelope, resolution, encoder, f));
+		if (z > 5) PostGIS.fetch2("vl_riks", tileBounds).forEach(f -> encodeRecord("vl_riks", envelope, resolution, encoder, f));
+		// if (z > 5) PostGIS.fetch2("tx_riks", tileBounds).forEach(r -> encodeRecord("tx_riks", envelope, resolution, encoder, r));
+		if (z > 5) PostGIS.fetch2("by_riks", tileBounds).forEach(f -> encodeRecord("by_riks", envelope, resolution, encoder, f));
+		if (z > 5) PostGIS.fetch2("my_riks", tileBounds).forEach(f -> encodeRecord("my_riks", envelope, resolution, encoder, f));
+		// if (z > 7) PostGIS.fetch2("oh_riks", tileBounds).forEach(f -> encodeRecord("oh_riks", envelope, resolution, encoder, f)); 
+		 */
+		final byte[] mbtile = encoder.encode();
 
-		String path = "terrang/" + tileIndexToString(tileIndex) + ".pbf";
+		final String path = "terrang/" + tileIndexToString(tileIndex) + ".pbf";
 		try {
 			Files.createDirectories(Paths.get(path).getParent());
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 
-		File file = new File(path);
+		final File file = new File(path);
 		try (FileOutputStream fos = new FileOutputStream(file)) {
 			fos.getChannel().write(ByteBuffer.wrap(mbtile));
 		} catch (IOException e) {

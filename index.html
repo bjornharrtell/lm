@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mapbox Vector Tiles</title>
+    <meta charset="UTF-8">
+    <meta name=viewport content="width=device-width, maximum-scale=1, user-scalable=no, initial-scale=1">
+    <link rel="stylesheet" href="ol.css" type="text/css">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700,300' rel='stylesheet' type='text/css'>
+    <script src="ol-debug.js"></script>
+    <style>
+      html, body, .map {
+        position: absolute;
+        font: 11px Open Sans, Arial, Helvetica, sans serif;
+        padding: 0;
+        margin: 0;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+      input[type=checkbox] {
+        vertical-align: middle;
+        position: relative;
+        bottom: 1px;
+      }
+      label {
+        position: relative;
+        top: 6px;
+        left: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <label><input type="checkbox" id="labels" checked />Texter</label>
+    <label><input type="checkbox" id="oh" />Höjdkurvor</label>
+    <script>
+      var origin = [218128, 6126002]
+
+      function tileUrlFunction(c) {
+        return 'terrang/'+c[0]+'/'+c[1]+'/'+c[2]+'.pbf'
+      }
+
+      var source = new ol.source.VectorTile({
+        attributions: '© Lantmäteriet',
+        format: new ol.format.MVT(),
+        tileGrid: new ol.tilegrid.TileGrid({
+          origin: origin,
+          resolutions: [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8]
+        }),
+        tilePixelRatio: 2,
+        tileUrlFunction: tileUrlFunction
+      })
+
+      var styleFunctions = {
+        'terrang.by_riks': function(f, res) {
+          return [
+            new ol.style.Style({
+              fill: new ol.style.Fill({
+                color: '#000000'
+              }),
+              zIndex: 100
+            })
+          ]
+        },
+        'terrang.tx_riks': function(f, res) {
+          if (!document.getElementById('labels').checked) return []
+          var kkod = f.get('kkod')
+          // if (res > 32) return []
+          if (kkod < 2 || kkod > 9) return []
+          if (res > 16 && kkod < 8 || kkod > 9) return []
+          var weight = kkod <= 8 ? 'normal' : 'bold'
+          return [
+            new ol.style.Style({
+              text: new ol.style.Text({
+                font: weight + ' 10px Open Sans, Arial, Helvetica, sans serif',
+                text: f.get('text'),
+                stroke: new ol.style.Stroke({
+                  color: '#ffffff',
+                  width: 3
+                })
+              }),
+              zIndex: 1000
+            })
+          ]
+        },
+        'terrang.oh_riks': function(f, res) {
+          if (!document.getElementById('oh').checked) return []
+          var color = ol.color.asArray('#E4771D')
+          color[3] = 0.5
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: color
+              })
+            })
+          ]
+        },
+        'terrang.al_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          // if (kkod == 24 && res > 256) return []
+          var widthMap = {
+            21: 2,
+            23: 1.5,
+            24: 1
+          }
+          var dashMap = {
+            21: [5, 5],
+            23: [5, 5],
+            24: [5, 5]
+          }
+          var colorMap = {
+            21: '#000000',
+            23: '#000000',
+            24: '#888888'
+          }
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: colorMap[kkod],
+                width: widthMap[kkod],
+                lineDash: dashMap[kkod]
+              }),
+              zIndex: 50
+            })
+          ]
+        },
+        'terrang.vl_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          var w = 10
+          var c = '#fff'
+          //  || (kkod >= 5811 && kkod <= 5861) // underfarter
+          var zIndex = 20
+          if (kkod >= 5011 && kkod <= 5044) {
+            w = 2
+            c = '#dea66a'
+            zIndex += 1
+          }
+          if (kkod === 5011) w = 3.5
+          // if (kkod === 5022) w = 2.2
+          //  || (kkod >= 5856 && kkod <= 5891) // underfarter
+          if (kkod >= 5051 && kkod <= 5091) {
+            w = 1.5
+            c = '#fff'
+          }
+          if (w === 10) return []
+          if (res === 16 && w === 1.5) w = 0.1
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: w === 2 || w === 0.1 ? '#fff' : '#999',
+                width: w + 1
+              }),
+              zIndex: zIndex
+            }),
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: c,
+                width: w
+              }),
+              zIndex: zIndex + 1
+            })
+          ]
+        },
+        'terrang.my_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          var colorMap = {
+            1: '#cce4fc',
+            2: '#daebc5',
+            4: '#fff1ba',
+            5: '#ffffff',
+            7: '#a1d054',
+            8: '#cf26e1',
+            10: '#4860eb',
+            12: '#b30075',
+            13: '#d67eac',
+            14: '#eebed8',
+            15: '#e2e3e4',
+            16: '#ec7175',
+            17: '#37e3be',
+            18: '#e688ac',
+            19: '#9cec7f',
+            20: '#1b82e9'
+          }
+          return [
+            new ol.style.Style({
+              fill: new ol.style.Fill({
+                color: colorMap[kkod]
+              }),
+              zIndex: -2
+            })
+          ]
+        },
+        'terrang.ml_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          if (kkod>20) kkod = parseInt(kkod/100)
+          var colorMap = {
+            1: '#cce4fc',
+            2: '#daebc5',
+            4: '#fff1ba',
+            5: '#ffffff',
+            7: '#a1d054',
+            9: '#cf26e1',
+            10: '#4860eb',
+            12: '#b30075',
+            13: '#d67eac',
+            14: '#eebed8',
+            15: '#e2e3e4',
+            16: '#ec7175',
+            17: '#37e3be',
+            18: '#e688ac',
+            19: '#9cec7f',
+            20: '#1b82e9'
+          }
+          var color = ol.color.asArray(colorMap[kkod]).map(x => x * 0.9)
+          color[3] = 1
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: color
+              }),
+              zIndex: -1
+            })
+          ]
+        },
+        'sve1milj.vl_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          var w = 10
+          var c = '#fff'
+          if ([5011, 5111, 5211].indexOf(kkod) !== -1 || [8011, 8111, 8211].indexOf(kkod) !== -1 ) {
+            w = 3
+            c = '#dea66a'
+          }
+          if ([5012, 5112, 5212].indexOf(kkod) !== -1 || [8012, 8112, 8212].indexOf(kkod) !== -1 ) {
+            w = 2
+            c = '#dea66a'
+          }
+          if ([5013, 5113, 5213].indexOf(kkod) !== -1 || [8013, 8113, 8213].indexOf(kkod) !== -1 ) {
+            w = 0.3
+            c = '#fff'
+          }
+          if (w === 10) return []
+          if (w === 2 && res>256) return []
+          if (w === 1 && res>64) return []
+          if (w === 3 && res>1024) w = 2
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#fff',
+                width: w + 1
+              }),
+              zIndex: 20
+            }),
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: c,
+                width: w
+              }),
+              zIndex: 21
+            })
+          ]
+        },
+        'sve1milj.tx_riks': function(f, res) {
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#000'
+              })
+            })
+          ]
+        },
+        'sve1milj.jl_riks': function(f, res) {
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#000'
+              })
+            })
+          ]
+        },
+        'sve1milj.mb_riks': function(f, res) {
+          return []
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#000'
+              })
+            })
+          ]
+        },
+        'sve1milj.ml_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          var colorMap = {
+            1: '#cce4fc',
+            2: '#cce4fc',
+            3: '#cce4fc',
+            4: '#e2e3e4',
+            5: '#daebc5',
+            7: '#fff1ba'
+          }
+          var color = colorMap[kkod]
+          if (!color) return []
+          color = ol.color.asArray(colorMap[kkod]).map(x => x * 0.9)
+          color[3] = 1
+          return [
+            new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: color
+              }),
+              zIndex: -1
+            })
+          ]
+        },
+        'sve1milj.my_riks': function(f, res) {
+          var kkod = f.get('kkod')
+          var colorMap = {
+            1: '#cce4fc',
+            2: '#cce4fc',
+            3: '#cce4fc',
+            4: '#e2e3e4',
+            5: '#daebc5',
+            7: '#fff1ba'
+          }
+          var color = colorMap[kkod]
+          if (!color) return []
+          return [
+            new ol.style.Style({
+              fill: new ol.style.Fill({
+                color: colorMap[kkod]
+              }),
+              zIndex: -2
+            })
+          ]
+        }
+      }
+
+      function style(f, res) {
+        return styleFunctions[f.get('layer')](f, res)
+      }
+
+      var layer = new ol.layer.VectorTile({
+        // renderBuffer: 32,
+        source: source,
+        style: style,
+        renderMode: 'hybrid'
+      })
+
+      var map = new ol.Map({
+        layers: [ layer ],
+        target: 'map',
+        view: new ol.View({
+          center: [568914, 6495224],
+          resolutions: [4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1],
+          zoom: 8
+        }),
+        interactions: [
+          // new ol.interaction.DragRotate(),
+          new ol.interaction.DoubleClickZoom(),
+          new ol.interaction.DragPan(),
+          // new ol.interaction.PinchRotate(),
+          new ol.interaction.PinchZoom(),
+          new ol.interaction.KeyboardPan(),
+          new ol.interaction.KeyboardZoom(),
+          new ol.interaction.MouseWheelZoom(),
+          new ol.interaction.DragZoom()
+        ]
+      })
+
+      function onClick() {
+        source.refresh()
+      }
+
+
+      document.getElementById('labels').addEventListener('click', onClick)
+      document.getElementById('oh').addEventListener('click', onClick)
+
+    </script>
+  </body>
+</html>
